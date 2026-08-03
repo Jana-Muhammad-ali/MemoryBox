@@ -65,6 +65,12 @@ namespace MemoryBox.Migrations
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("TrustedContactEmail")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TrustedContactName")
+                        .HasColumnType("TEXT");
+
                     b.Property<bool>("TwoFactorEnabled")
                         .HasColumnType("INTEGER");
 

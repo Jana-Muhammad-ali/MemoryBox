@@ -389,6 +389,13 @@ body::before {
         line-height: 1.5;
     }
 
+.hero-name {
+    font-style: italic;
+    color: var(--coral, #e07a5a);
+    position: relative;
+    white-space: nowrap;
+}
+
 .wax-seal-mini {
     width: 38px;
     height: 38px;
@@ -919,28 +926,29 @@ body::before {
 .capsule-gallery-item {
     flex: 0 0 auto;
     scroll-snap-align: center;
+    /* fallback box before JS measures the real media and sizes the frame
+       to its own aspect ratio (see fitCapsuleGalleryItem in script.js) —
+       kept as min/max bounds so the frame never grows past this footprint */
     width: min(340px, 66vw);
     height: 380px;
+    max-width: min(340px, 66vw);
+    max-height: 380px;
     border-radius: 18px;
     overflow: hidden;
     background: #16241c;
     border: 1px solid var(--line);
     box-shadow: 0 24px 50px rgba(0,0,0,0.2);
     will-change: transform, opacity;
-    transition: transform 0.15s ease-out, opacity 0.15s ease-out;
+    transition: transform 0.15s ease-out, opacity 0.15s ease-out, width 0.25s ease, height 0.25s ease;
 }
 
-    .capsule-gallery-item img {
-        height: 100%;
-        width: 100%;
-        display: block;
-        object-fit: cover;
-    }
-
+    .capsule-gallery-item img,
     .capsule-gallery-item video {
         height: 100%;
         width: 100%;
         display: block;
+        /* the frame itself now matches the media's own ratio (JS-driven),
+           so contain here just fills it cleanly without ever cropping */
         object-fit: contain;
         background: #16241c;
     }
@@ -1137,8 +1145,15 @@ body::before {
     border-radius: 14px;
     padding: 24px;
     position: relative;
-    box-shadow: 0 20px 40px -18px rgba(0,0,0,0.5);
+    transform: rotate(var(--tilt, 0deg));
+    box-shadow: var(--tilt-shadow-x, 0px) 18px 28px -4px rgba(0,0,0,0.35), var(--tilt-shadow-x, 0px) 6px 10px -4px rgba(0,0,0,0.25);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
+
+    .capsule-card:hover {
+        transform: rotate(0deg) translateY(-4px);
+        box-shadow: 0 24px 34px -4px rgba(0,0,0,0.4), 0 8px 12px -4px rgba(0,0,0,0.3);
+    }
 
     .capsule-card .tape {
         position: absolute;
@@ -1372,6 +1387,43 @@ body::before {
     margin-bottom: 18px;
 }
 
+.field-section {
+    margin: 6px 0 22px;
+    padding: 16px 16px 4px;
+    background: rgba(44,110,73,0.05);
+    border: 1px solid rgba(44,110,73,0.14);
+    border-radius: 12px;
+}
+
+.field-section-title {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--ink);
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.optional-tag {
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    background: var(--paper-white);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 2px 8px;
+}
+
+.field-hint {
+    font-size: 0.8rem;
+    line-height: 1.5;
+    color: var(--ink-soft);
+    margin: 0 0 14px;
+}
+
 .form-error {
     display: none;
     background: #fdecea;
@@ -1433,6 +1485,32 @@ body::before {
     .checkbox-row input {
         margin-top: 3px;
         accent-color: var(--gold);
+    }
+
+.btn-inline-add {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 14px;
+    padding: 8px 14px;
+    border: 1px dashed var(--line, #d8cfba);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--coral-deep, #c15f42);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color .15s ease, background .15s ease;
+}
+
+    .btn-inline-add:hover {
+        border-color: var(--coral-deep, #c15f42);
+        background: rgba(224, 122, 90, 0.06);
+    }
+
+    .btn-inline-add.is-open {
+        display: none;
     }
 
 .link-gold {

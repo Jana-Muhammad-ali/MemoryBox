@@ -15,12 +15,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         base.OnModelCreating(builder);
         builder.Entity<Capsule>().HasIndex(c => c.ViewToken).IsUnique();
 
-        // SQLite doesn't persist DateTimeKind, so every DateTime read back from the
-        // database comes out as Kind=Unspecified. When that gets serialized to JSON
-        // it's missing the trailing "Z", so the browser's `new Date(...)` silently
-        // parses it as LOCAL time instead of UTC — making capsules look "unlocked"
-        // hours before they actually should be. Forcing Kind=Utc on the way out fixes
-        // this at the source for every DateTime column.
+        
         var utcConverter = new Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<DateTime, DateTime>(
             v => v,
             v => DateTime.SpecifyKind(v, DateTimeKind.Utc));

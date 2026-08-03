@@ -164,7 +164,11 @@ if (sealBtn) {
             return;
         }
 
-        const messageText = (document.querySelector('#fill-message textarea')?.value || '').trim();
+        // "message" capsules can optionally carry an attached photo, and "photo" capsules
+        // can optionally carry a short message — pull whichever text box is relevant.
+        const messageText = selectedType === 'photo'
+            ? (document.getElementById('photo-message-text')?.value || '').trim()
+            : (document.querySelector('#fill-message textarea')?.value || '').trim();
         if (selectedType === 'message' && !messageText) {
             showFormError('seal-error', 'Write your message first.');
             goToStep(2);
@@ -211,6 +215,7 @@ if (sealBtn) {
         else if (selectedType === 'moments') { selectedMomentsFiles.forEach(f => formData.append('files', f)); }
         else if (selectedType === 'video' && selectedVideoFile) { formData.append('files', selectedVideoFile); }
         else if (selectedType === 'voice' && recordedVoiceBlob) { formData.append('files', recordedVoiceBlob, 'voice-note.webm'); }
+        else if (selectedType === 'message' && selectedMessagePhotoFiles.length > 0) { selectedMessagePhotoFiles.forEach(f => formData.append('files', f)); }
 
         sealBtn.disabled = true;
         try {
@@ -263,6 +268,7 @@ let selectedVideoFile = null;
 let selectedMomentsFiles = [];
 let selectedMemoryBoxFiles = [];
 let recordedVoiceBlob = null;
+let selectedMessagePhotoFiles = []; // optional photo(s) attached to a "message" capsule
 
 const photoInput = document.getElementById('photo-input');
 const photoDropzone = document.getElementById('photo-dropzone');
@@ -273,6 +279,39 @@ if (photoDropzone && photoInput) {
         selectedPhotoFiles = [...selectedPhotoFiles, ...incoming].slice(0, 10);
         photoInput.value = '';
         renderFileChips('photo');
+    });
+}
+
+// optional photo attached to a "message" capsule
+const messageAddPhotoBtn = document.getElementById('message-add-photo-btn');
+const messagePhotoAttach = document.getElementById('message-photo-attach');
+const messagePhotoInput = document.getElementById('message-photo-input');
+const messagePhotoDropzone = document.getElementById('message-photo-dropzone');
+if (messageAddPhotoBtn && messagePhotoAttach) {
+    messageAddPhotoBtn.addEventListener('click', () => {
+        messagePhotoAttach.style.display = 'block';
+        messageAddPhotoBtn.classList.add('is-open');
+    });
+}
+if (messagePhotoDropzone && messagePhotoInput) {
+    messagePhotoDropzone.addEventListener('click', () => messagePhotoInput.click());
+    messagePhotoInput.addEventListener('change', () => {
+        const incoming = Array.from(messagePhotoInput.files || []);
+        selectedMessagePhotoFiles = [...selectedMessagePhotoFiles, ...incoming].slice(0, 5);
+        messagePhotoInput.value = '';
+        renderFileChips('message-photo');
+    });
+}
+
+// optional message attached to a "photo" capsule
+const photoAddMessageBtn = document.getElementById('photo-add-message-btn');
+const photoMessageAttach = document.getElementById('photo-message-attach');
+if (photoAddMessageBtn && photoMessageAttach) {
+    photoAddMessageBtn.addEventListener('click', () => {
+        photoMessageAttach.style.display = 'block';
+        photoAddMessageBtn.classList.add('is-open');
+        const ta = document.getElementById('photo-message-text');
+        if (ta) ta.focus();
     });
 }
 
@@ -306,7 +345,8 @@ function renderFileChips(kind) {
     const files = kind === 'photo' ? selectedPhotoFiles
         : kind === 'moments' ? selectedMomentsFiles
             : kind === 'mb' ? selectedMemoryBoxFiles
-                : (selectedVideoFile ? [selectedVideoFile] : []);
+                : kind === 'message-photo' ? selectedMessagePhotoFiles
+                    : (selectedVideoFile ? [selectedVideoFile] : []);
     files.forEach((file, idx) => {
         const chip = document.createElement('div');
         chip.className = 'file-chip';
@@ -318,6 +358,7 @@ function renderFileChips(kind) {
             if (kind === 'photo') { selectedPhotoFiles.splice(idx, 1); }
             else if (kind === 'moments') { selectedMomentsFiles.splice(idx, 1); }
             else if (kind === 'mb') { selectedMemoryBoxFiles.splice(idx, 1); }
+            else if (kind === 'message-photo') { selectedMessagePhotoFiles.splice(idx, 1); }
             else { selectedVideoFile = null; }
             renderFileChips(kind);
         });
@@ -406,6 +447,8 @@ function resetWizard() {
 
     const msgBox = document.querySelector('#fill-message textarea');
     if (msgBox) msgBox.value = '';
+    const photoMsgBox = document.getElementById('photo-message-text');
+    if (photoMsgBox) photoMsgBox.value = '';
     const recName = document.getElementById('rec-name');
     const recEmail = document.getElementById('rec-email');
     if (recName) recName.value = '';
@@ -414,12 +457,19 @@ function resetWizard() {
     selectedPhotoFiles = [];
     selectedVideoFile = null;
     selectedMomentsFiles = [];
+    selectedMessagePhotoFiles = [];
     recordedVoiceBlob = null;
     renderFileChips('photo');
     renderFileChips('video');
     renderFileChips('moments');
+    renderFileChips('message-photo');
     resetRecordingUI();
     clearFormError('seal-error');
+
+    if (messagePhotoAttach) messagePhotoAttach.style.display = 'none';
+    if (messageAddPhotoBtn) messageAddPhotoBtn.classList.remove('is-open');
+    if (photoMessageAttach) photoMessageAttach.style.display = 'none';
+    if (photoAddMessageBtn) photoAddMessageBtn.classList.remove('is-open');
 
     goToStep(1);
 }
@@ -460,7 +510,6 @@ function clearAuth() {
     localStorage.removeItem('mb_name');
 }
 
-// wrapper around fetch() that automatically attaches the auth token
 async function apiFetch(path, options = {}) {
     const token = getToken();
     const headers = Object.assign(
@@ -470,7 +519,6 @@ async function apiFetch(path, options = {}) {
     );
     const res = await fetch(API_BASE + path, { ...options, headers });
     if (res.status === 401 && token) {
-        // stored token is expired/invalid — drop it and send the user back to login
         clearAuth();
         refreshAuthUI();
         showScreen('login');
@@ -492,7 +540,6 @@ function clearFormError(elId) {
     el.classList.remove('show');
 }
 
-// reflect whether the user is logged in on the nav bar
 function refreshAuthUI() {
     const loggedIn = !!getToken();
     const navLogin = document.getElementById('nav-login');
@@ -504,25 +551,32 @@ function refreshAuthUI() {
     updateHeroForUser();
 }
 
-// personalize the homepage hero so it reads like a note to your future self
 function updateHeroForUser() {
     const heading = document.getElementById('hero-heading');
     const sub = document.getElementById('hero-sub');
     const letter = document.getElementById('hero-letter');
+    const seal = document.getElementById('hero-seal');
     const firstName = (getUserName() || '').trim().split(' ')[0];
 
+    const escapeHtml = (str) => str.replace(/[&<>"']/g, (c) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+
     if (firstName) {
-        if (heading) heading.textContent = `Some things are worth the wait, ${firstName}.`;
+        const safeName = escapeHtml(firstName);
+        if (heading) heading.innerHTML = `Some things are worth the wait, <span class="hero-name">${safeName}</span>.`;
         if (sub) sub.textContent = `Write a message to future ${firstName}, record your voice, or save a few photos — then seal it until the exact moment it's meant for. Yours to open later, or a gift for someone else's inbox.`;
         if (letter) letter.textContent = `Dear future ${firstName} — open this when the time is right.`;
+        if (seal) seal.textContent = firstName.charAt(0).toUpperCase();
     } else {
         if (heading) heading.textContent = 'Some things are worth the wait.';
         if (sub) sub.textContent = "Write a message, record your voice, or save a few photos — then seal it until the exact moment it's meant for. Yours to open later, or a gift for someone else's inbox.";
         if (letter) letter.textContent = 'Dear future you — open this when the time is right.';
+        if (seal) seal.textContent = 'M';
     }
 }
 
-// ---- Register ----
+
 const registerBtn = document.getElementById('register-submit');
 if (registerBtn) {
     registerBtn.addEventListener('click', async () => {
@@ -532,16 +586,28 @@ if (registerBtn) {
         const pass = document.getElementById('reg-pass').value;
         const pass2 = document.getElementById('reg-pass2').value;
         const terms = document.getElementById('reg-terms').checked;
+        const trusteeName = document.getElementById('reg-trustee-name').value.trim();
+        const trusteeEmail = document.getElementById('reg-trustee-email').value.trim();
 
         if (!name || !email || !pass) { showFormError('register-error', 'Please fill in all fields.'); return; }
         if (pass !== pass2) { showFormError('register-error', "Passwords don't match."); return; }
         if (!terms) { showFormError('register-error', 'Please accept the Terms of Service.'); return; }
+        if (trusteeEmail && trusteeEmail.toLowerCase() === email.toLowerCase()) {
+            showFormError('register-error', 'Your trusted contact should be someone other than yourself.');
+            return;
+        }
 
         registerBtn.disabled = true;
         try {
             const res = await apiFetch('/api/auth/register', {
                 method: 'POST',
-                body: JSON.stringify({ email, password: pass, fullName: name })
+                body: JSON.stringify({
+                    email,
+                    password: pass,
+                    fullName: name,
+                    trustedContactName: trusteeName || null,
+                    trustedContactEmail: trusteeEmail || null
+                })
             });
             if (!res.ok) {
                 const err = await res.json().catch(() => null);
@@ -549,7 +615,7 @@ if (registerBtn) {
                 showFormError('register-error', msg);
                 return;
             }
-            // registered successfully -> log the user in right away
+            
             await doLogin(email, pass, 'register-error');
         } catch (e) {
             showFormError('register-error', 'Network error. Please try again.');
@@ -559,7 +625,7 @@ if (registerBtn) {
     });
 }
 
-// ---- Login ----
+
 const loginBtn = document.getElementById('login-submit');
 if (loginBtn) {
     loginBtn.addEventListener('click', async () => {
@@ -584,7 +650,7 @@ async function doLogin(email, password, errorElId) {
             showFormError(errorElId, 'Incorrect email or password.');
             return;
         }
-        const data = await res.json(); // { accessToken, expiresAt, fullName, email }
+        const data = await res.json(); 
         saveAuth(data.accessToken);
         saveUserName(data.fullName);
         refreshAuthUI();
@@ -597,7 +663,7 @@ async function doLogin(email, password, errorElId) {
             pendingGoto = null;
             showScreen('add-moment');
         } else {
-            showScreen('home'); // showScreen() itself triggers refreshCapsules() for a logged-in user
+            showScreen('home'); 
         }
     } catch (e) {
         showFormError(errorElId, 'Network error. Please try again.');
@@ -614,9 +680,6 @@ if (logoutBtn) {
     });
 }
 
-// ---- Add a moment (photo/video) to an existing "moments" capsule, any time
-//      before it unlocks. Call addMomentsToCapsule(capsuleId, fileList) from
-//      whatever "Add a moment" button/input you wire up in the UI. ----
 async function addMomentsToCapsule(capsuleId, files) {
     if (!getToken()) { pendingGoto = 'create'; showScreen('login'); return { ok: false }; }
     if (!files || files.length === 0) return { ok: false, error: 'Pick at least one photo or video first.' };
@@ -627,7 +690,7 @@ async function addMomentsToCapsule(capsuleId, files) {
     try {
         const res = await fetch(API_BASE + `/api/capsules/${capsuleId}/moments`, {
             method: 'POST',
-            headers: { Authorization: 'Bearer ' + getToken() }, // no Content-Type: the browser sets the multipart boundary itself
+            headers: { Authorization: 'Bearer ' + getToken() }, 
             body: formData
         });
         if (res.status === 401) {
@@ -643,17 +706,14 @@ async function addMomentsToCapsule(capsuleId, files) {
             return { ok: false, error: err?.error || 'Could not add that moment. Please try again.' };
         }
         const data = await res.json();
-        refreshCapsules(); // dashboard picks up the new moment count right away
+        refreshCapsules(); 
         return { ok: true, momentsCount: data.momentsCount };
     } catch (e) {
         return { ok: false, error: 'Network error. Please try again.' };
     }
 }
 
-// ---- "Add a Moment" screen: a standalone Memory Box, independent from the
-//      "Create a capsule" wizard. The account owner picks an end date, adds
-//      photos/videos to start it, and can keep adding more any time before
-//      it ends — always for their own inbox, never for someone else. ----
+
 const mbDropzone = document.getElementById('mb-dropzone');
 const mbInput = document.getElementById('mb-input');
 if (mbDropzone && mbInput) {
@@ -683,8 +743,7 @@ function resetMemoryBoxForm() {
     clearFormError('mb-error');
 }
 
-// Opens the envelope like a real letter: the flap folds back first, then the
-// form slides/fades up as if being pulled out from inside.
+
 function openMemoryBoxEnvelope() {
     if (mbEnvelope) mbEnvelope.classList.add('open');
     if (mbEnvelopeFront) mbEnvelopeFront.style.display = 'none';
@@ -694,7 +753,6 @@ function openMemoryBoxEnvelope() {
     }
 }
 
-// Closes it back up: the form fades down first, then the flap folds shut.
 function closeMemoryBoxEnvelope() {
     if (mbForm) {
         mbForm.classList.remove('show');
@@ -784,8 +842,7 @@ if (mbSubmitBtn) {
     });
 }
 
-// ---- "Add a Moment" screen: lists the user's still-sealed "moments" capsules,
-//      each with its own upload widget to drop in more photos/videos. ----
+
 async function loadMomentsScreen() {
     const list = document.getElementById('moments-list');
     const empty = document.getElementById('moments-empty');
@@ -836,7 +893,7 @@ async function loadMomentsScreen() {
                 input.value = '';
                 if (result.ok) {
                     status.textContent = `Added! ${result.momentsCount} moment${result.momentsCount === 1 ? '' : 's'} sealed so far.`;
-                    loadMomentsScreen(); // refresh counts across the board
+                    loadMomentsScreen(); 
                 } else {
                     status.textContent = result.error || 'Something went wrong.';
                 }
@@ -847,12 +904,10 @@ async function loadMomentsScreen() {
     }
 }
 
-// ---- Dashboard: load & render the logged-in user's real capsules ----
 const TYPE_ICON = { message: '✉️', photo: '🖼️', voice: '🎙️', video: '🎬', moments: '📸' };
 const TYPE_LABEL = { message: 'Message', photo: 'Photo capsule', voice: 'Voice note', video: 'Video', moments: 'Moments collection' };
 
-// Creative teaser copy shown on the dashboard instead of the real capsule content —
-// the actual message/photo/voice/video only ever appears when the capsule itself is opened.
+
 const TEASER_SEALED = {
     message: 'A few words are sealed inside, waiting for their moment.',
     photo: 'A picture is tucked away in here, waiting for the light.',
@@ -895,6 +950,14 @@ async function refreshCapsules() {
             const isReady = capsule.isSent || new Date(capsule.unlockAtUtc) <= new Date();
             const card = document.createElement('div');
             card.className = 'capsule-card';
+
+           
+            const tiltSign = index % 2 === 0 ? -1 : 1;
+            const tiltDeg = (tiltSign * (1.6 + (index % 3) * 0.5)).toFixed(1);
+            const shadowX = (tiltSign * 8) + 'px';
+            card.style.setProperty('--tilt', tiltDeg + 'deg');
+            card.style.setProperty('--tilt-shadow-x', shadowX);
+
             card.innerHTML = `
                 <div class="tape tape-variant-${index % 3}"></div>
                 <div class="capsule-icon">${TYPE_ICON[capsule.type] || '✉️'}</div>
@@ -908,7 +971,6 @@ async function refreshCapsules() {
             grid.appendChild(card);
         });
     } catch (e) {
-        // silent — dashboard just stays on whatever it last showed
     }
 }
 
@@ -918,21 +980,15 @@ function escapeHtml(str) {
     return div.innerHTML;
 }
 
-// run once on page load
 refreshAuthUI();
 if (getToken()) {
     refreshCapsules();
 } else {
-    // no account -> straight to Register (the shared-capsule overlay below still
-    // works fine on top of this, since it's a separate overlay, not a screen)
+    
     showScreen('register');
 }
 
-// ==========================================================
-// ---- CAPSULE OPEN: sealed-envelope reveal animation ----
-//      call openCapsuleReveal({ title, eyebrow, body }) whenever
-//      a real, unlocked capsule is opened (wired in Step 2)
-// ==========================================================
+
 const envOverlay = document.getElementById('envelope-overlay');
 const envReveal = document.getElementById('envelope-reveal');
 const envContent = document.getElementById('env-content');
@@ -943,8 +999,7 @@ const envBgBlur = document.getElementById('env-bg-blur');
 const envParticles = document.getElementById('env-particles');
 const envMuteBtn = document.getElementById('envelope-mute');
 
-// ---- sound engine: tiny procedural sound effects (no audio files needed)
-// so opening a memory always has paper/wax/pop feedback, unless muted. ----
+
 const envSound = (() => {
     let ctx = null;
     let muted = localStorage.getItem('mb_muted') === '1';
@@ -1016,7 +1071,6 @@ if (envMuteBtn) envMuteBtn.addEventListener('click', () => {
     updateMuteButton();
 });
 
-// ---- drifting dust particles behind the envelope ----
 function spawnEnvParticles() {
     if (!envParticles || envParticles.dataset.spawned) return;
     envParticles.dataset.spawned = '1';
@@ -1042,30 +1096,23 @@ function openCapsuleReveal({ title = 'Untitled memory', eyebrow = 'Opened today'
         ${buildGalleryHtml(galleryItems)}
         <div class="env-content-body">${body}</div>
     `;
-    // every open starts sealed shut — the person taps the envelope to open it
     envReveal.classList.remove('opening', 'unsealed', 'arrived-today', 'seal-shake', 'seal-drop');
     if (envSealed) envSealed.style.display = '';
     if (envBgBlur) { envBgBlur.classList.remove('show'); envBgBlur.style.backgroundImage = ''; }
 
-    // subtle extra glow around the envelope when the memory arrived today
     if (arrivedToday) envReveal.classList.add('arrived-today');
 
     envOverlay.classList.add('show');
     spawnEnvParticles();
-    // remember the first visual moment for the blurred backdrop reveal
     const firstVisual = galleryItems.find(g => g.type === 'image' || g.type === 'video');
     envReveal.dataset.bgSrc = (firstVisual && firstVisual.type === 'image') ? firstVisual.src : '';
 
-    // restart the fade/scale-in animation on every open
     requestAnimationFrame(() => {
         requestAnimationFrame(() => envReveal.classList.add('opening'));
     });
 }
 
-// Tapping the sealed envelope plays out a small cinematic sequence:
-// the wax seal wiggles, cracks and drops away (with sound), the flap
-// folds open, the blurred memory fills the background, and finally the
-// letter rises up out of the envelope and fades in.
+
 function unsealCapsuleEnvelope() {
     if (!envReveal || envReveal.classList.contains('unsealed') || envReveal.classList.contains('seal-shake') || envReveal.classList.contains('seal-drop')) return;
 
@@ -1089,17 +1136,13 @@ function unsealCapsuleEnvelope() {
     setTimeout(() => envSound.pop(), 1180);
 
     setTimeout(() => {
-        // wheel carousel needs real layout sizes, so wire it up once it's visible
         requestAnimationFrame(() => requestAnimationFrame(() => initCapsuleGalleries(envContent)));
     }, 1260);
 }
 
 if (envSealed) envSealed.addEventListener('click', unsealCapsuleEnvelope);
 
-// Builds a circular "wheel" carousel: the centered photo/video sits large and
-// sharp, its neighbours are visible but smaller and dimmer, and the rest of
-// the moments stay out of sight until you scroll or use the arrows — so the
-// whole set never shows at once, only a comfortable turn through it.
+
 function buildGalleryHtml(items) {
     if (!items || items.length === 0) return '';
     const slides = items.map((item, i) => {
@@ -1128,9 +1171,48 @@ function buildGalleryHtml(items) {
     `;
 }
 
-// Drives the wheel effect: on every scroll frame, each slide's distance from
-// the carousel's center is turned into a scale/rotate/fade, so the carousel
-// reads like a ring of moments turning past a fixed viewing window.
+
+function fitCapsuleGalleryItem(itemEl, onSized) {
+    const media = itemEl.querySelector('img, video');
+    if (!media) return;
+
+    const maxW = Math.min(340, window.innerWidth * 0.66);
+    const maxH = 380;
+    const minW = 200;
+    const minH = 200;
+
+    function apply(naturalW, naturalH) {
+        if (!naturalW || !naturalH) return;
+        const ratio = naturalW / naturalH;
+        let w = maxW;
+        let h = w / ratio;
+        if (h > maxH) {
+            h = maxH;
+            w = h * ratio;
+        }
+        w = Math.max(minW, Math.min(maxW, w));
+        h = Math.max(minH, Math.min(maxH, h));
+        itemEl.style.width = `${w}px`;
+        itemEl.style.height = `${h}px`;
+        if (typeof onSized === 'function') onSized();
+    }
+
+    if (media.tagName === 'IMG') {
+        if (media.complete && media.naturalWidth) {
+            apply(media.naturalWidth, media.naturalHeight);
+        } else {
+            media.addEventListener('load', () => apply(media.naturalWidth, media.naturalHeight), { once: true });
+        }
+    } else {
+        if (media.readyState >= 1 && media.videoWidth) {
+            apply(media.videoWidth, media.videoHeight);
+        } else {
+            media.addEventListener('loadedmetadata', () => apply(media.videoWidth, media.videoHeight), { once: true });
+        }
+    }
+}
+
+
 function initCapsuleGalleries(root) {
     root.querySelectorAll('[data-gallery]').forEach(wrap => {
         const track = wrap.querySelector('.capsule-gallery');
@@ -1143,6 +1225,9 @@ function initCapsuleGalleries(root) {
 
         let activeIndex = 0;
 
+        items.forEach(item => fitCapsuleGalleryItem(item, update));
+        window.addEventListener('resize', () => items.forEach(item => fitCapsuleGalleryItem(item, update)));
+
         function update() {
             const trackRect = track.getBoundingClientRect();
             if (trackRect.width === 0) return;
@@ -1151,7 +1236,7 @@ function initCapsuleGalleries(root) {
             items.forEach((item, i) => {
                 const r = item.getBoundingClientRect();
                 const itemCenter = r.left + r.width / 2;
-                const dist = (itemCenter - center) / trackRect.width; // signed, negative = to the left
+                const dist = (itemCenter - center) / trackRect.width;
                 const abs = Math.min(Math.abs(dist), 1.5);
                 const scale = 1 - abs * 0.34;
                 const rotate = dist * 28;
@@ -1195,11 +1280,7 @@ if (envOverlay) envOverlay.addEventListener('click', (e) => {
     if (e.target === envOverlay) closeCapsuleReveal();
 });
 
-// ==========================================================
-// ---- SHARED CAPSULE LINK: opens from the unlock email
-//      (?view=TOKEN) — no login needed. The token only ever
-//      resolves to this one capsule; nothing else is exposed. ----
-// ==========================================================
+
 async function tryOpenSharedCapsuleFromLink() {
     const token = new URLSearchParams(window.location.search).get('view');
     if (!token) return;
@@ -1207,7 +1288,7 @@ async function tryOpenSharedCapsuleFromLink() {
     try {
         const res = await fetch(API_BASE + '/api/capsules/view/' + encodeURIComponent(token));
 
-        if (res.status === 423) { // still sealed
+        if (res.status === 423) {
             const data = await res.json().catch(() => null);
             const when = data?.unlockAtUtc ? new Date(data.unlockAtUtc).toLocaleString() : 'later';
             openCapsuleReveal({
@@ -1237,12 +1318,11 @@ async function tryOpenSharedCapsuleFromLink() {
             arrivedToday
         });
     } catch (e) {
-        // silent — a broken/offline link just does nothing
+
     }
 }
 
-// Whether the capsule's unlock date falls on today's calendar day — used
-// only to brighten the glow around the envelope (see .arrived-today in CSS).
+
 function isArrivingToday(unlockAtUtc) {
     if (!unlockAtUtc) return false;
     const unlock = new Date(unlockAtUtc);
@@ -1262,7 +1342,7 @@ function buildSharedCapsuleContent(capsule) {
     }
 
     (capsule.mediaPaths || []).forEach(path => {
-        if (capsule.type === 'photo') {
+        if (capsule.type === 'photo' || capsule.type === 'message') {
             galleryItems.push({ type: 'image', src: path });
         } else if (capsule.type === 'video') {
             galleryItems.push({ type: 'video', src: path });
@@ -1283,11 +1363,7 @@ function buildSharedCapsuleContent(capsule) {
 
 tryOpenSharedCapsuleFromLink();
 
-// ==========================================================
-// ---- Reveal-on-scroll for the "imagine" 2032 storytelling block ----
-//      (it was styled opacity:0 waiting for an .in-view class that
-//      nothing ever added — this is what fills that in.)
-// ==========================================================
+
 const imagineInner = document.querySelector('.imagine-inner');
 if (imagineInner && 'IntersectionObserver' in window) {
     const imagineObserver = new IntersectionObserver((entries) => {
@@ -1300,5 +1376,5 @@ if (imagineInner && 'IntersectionObserver' in window) {
     }, { threshold: 0.3 });
     imagineObserver.observe(imagineInner);
 } else if (imagineInner) {
-    imagineInner.classList.add('in-view'); // fallback for very old browsers
+    imagineInner.classList.add('in-view');
 }

@@ -1,0 +1,14 @@
+## .NET
+bin/
+obj/
+*.user
+
+## Local database
+*.db
+*.db-shm
+*.db-wal
+
+## Local secrets — never commit real credentials
+appsettings.Development.json
+appsettings.*.local.json
+.env

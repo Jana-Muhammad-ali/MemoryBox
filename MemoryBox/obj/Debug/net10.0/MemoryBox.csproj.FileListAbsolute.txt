@@ -141,6 +141,7 @@ D:\API.Net\MemoryBox\MemoryBox\obj\Debug\net10.0\MemoryBox.csproj.CoreCompileInp
 D:\API.Net\MemoryBox\MemoryBox\obj\Debug\net10.0\MemoryBox.MvcApplicationPartsAssemblyInfo.cache
 D:\API.Net\MemoryBox\MemoryBox\obj\Debug\net10.0\MemoryBox.RazorAssemblyInfo.cache
 D:\API.Net\MemoryBox\MemoryBox\obj\Debug\net10.0\MemoryBox.RazorAssemblyInfo.cs
+D:\API.Net\MemoryBox\MemoryBox\obj\Debug\net10.0\MemoryBox.sourcelink.json
 D:\API.Net\MemoryBox\MemoryBox\obj\Debug\net10.0\rjimswa.dswa.cache.json
 D:\API.Net\MemoryBox\MemoryBox\obj\Debug\net10.0\rjsmrazor.dswa.cache.json
 D:\API.Net\MemoryBox\MemoryBox\obj\Debug\net10.0\rjsmcshtml.dswa.cache.json
@@ -148,7 +149,7 @@ D:\API.Net\MemoryBox\MemoryBox\obj\Debug\net10.0\scopedcss\Views\Shared\_Layout.
 D:\API.Net\MemoryBox\MemoryBox\obj\Debug\net10.0\scopedcss\bundle\MemoryBox.styles.css
 D:\API.Net\MemoryBox\MemoryBox\obj\Debug\net10.0\scopedcss\projectbundle\MemoryBox.bundle.scp.css
 D:\API.Net\MemoryBox\MemoryBox\obj\Debug\net10.0\compressed\n4mcdzsi8u-{0}-61n19gt1b8-61n19gt1b8.gz
-D:\API.Net\MemoryBox\MemoryBox\obj\Debug\net10.0\compressed\fdkszqjqtf-{0}-caypthqkb0-caypthqkb0.gz
+D:\API.Net\MemoryBox\MemoryBox\obj\Debug\net10.0\compressed\fdkszqjqtf-{0}-6kmuxmtwr0-6kmuxmtwr0.gz
 D:\API.Net\MemoryBox\MemoryBox\obj\Debug\net10.0\compressed\sxqtpgbgd7-{0}-bqjiyaj88i-bqjiyaj88i.gz
 D:\API.Net\MemoryBox\MemoryBox\obj\Debug\net10.0\compressed\9lm6nmmszz-{0}-c2jlpeoesf-c2jlpeoesf.gz
 D:\API.Net\MemoryBox\MemoryBox\obj\Debug\net10.0\compressed\od0l18vg2v-{0}-erw9l3u2r3-erw9l3u2r3.gz
@@ -208,8 +209,8 @@ D:\API.Net\MemoryBox\MemoryBox\obj\Debug\net10.0\compressed\h71ki0gk9g-{0}-2z0ns
 D:\API.Net\MemoryBox\MemoryBox\obj\Debug\net10.0\compressed\f0rrgjnz8i-{0}-muycvpuwrr-muycvpuwrr.gz
 D:\API.Net\MemoryBox\MemoryBox\obj\Debug\net10.0\compressed\qhuv5r51us-{0}-87fc7y1x7t-87fc7y1x7t.gz
 D:\API.Net\MemoryBox\MemoryBox\obj\Debug\net10.0\compressed\w58svndrsk-{0}-mlv21k5csn-mlv21k5csn.gz
-D:\API.Net\MemoryBox\MemoryBox\obj\Debug\net10.0\compressed\0n6u17ulem-{0}-xxtpcz2y35-xxtpcz2y35.gz
-D:\API.Net\MemoryBox\MemoryBox\obj\Debug\net10.0\compressed\bhxuaqtt48-{0}-7rqmp0pydz-7rqmp0pydz.gz
+D:\API.Net\MemoryBox\MemoryBox\obj\Debug\net10.0\compressed\0n6u17ulem-{0}-jcmouvqkpu-jcmouvqkpu.gz
+D:\API.Net\MemoryBox\MemoryBox\obj\Debug\net10.0\compressed\bhxuaqtt48-{0}-ga8iya1v6z-ga8iya1v6z.gz
 D:\API.Net\MemoryBox\MemoryBox\obj\Debug\net10.0\compressed\tldrcy0uem-{0}-2zy0m0d4pp-2zy0m0d4pp.gz
 D:\API.Net\MemoryBox\MemoryBox\obj\Debug\net10.0\compressed\99qnvd6m8b-{0}-2zy0m0d4pp-2zy0m0d4pp.gz
 D:\API.Net\MemoryBox\MemoryBox\obj\Debug\net10.0\staticwebassets.build.json

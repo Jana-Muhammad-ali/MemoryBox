@@ -11,10 +11,11 @@
 using System;
 using System.Reflection;
 
+[assembly: Microsoft.Extensions.Configuration.UserSecrets.UserSecretsIdAttribute("ca1801cd-696c-428e-9e23-96b14809b371")]
 [assembly: System.Reflection.AssemblyCompanyAttribute("MemoryBox")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+ce7fd28e3fdbf00b42125fb1ee90506bfdbcf41e")]
 [assembly: System.Reflection.AssemblyProductAttribute("MemoryBox")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MemoryBox")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

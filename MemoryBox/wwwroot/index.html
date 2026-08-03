@@ -45,7 +45,7 @@
                 </div>
                 <div class="envelope">
                     <div class="tape-corner"></div>
-                    <div class="wax-seal-mini">M</div>
+                    <div class="wax-seal-mini" id="hero-seal">M</div>
                     <div class="letter" id="hero-letter">Dear future you — open this when the time is right.</div>
                 </div>
             </div>
@@ -207,6 +207,18 @@
                         <label for="reg-pass2">Confirm password</label>
                         <input type="password" id="reg-pass2" placeholder="Re-enter password">
                     </div>
+                    <div class="field-section">
+                        <div class="field-section-title">In case you're away <span class="optional-tag">Optional</span></div>
+                        <p class="field-hint">If you don't log in for 6 months, we'll quietly reach out to someone you trust so your capsules still reach the people they're meant for. They'll only ever see who each capsule is for — never its contents.</p>
+                        <div class="field">
+                            <label for="reg-trustee-name">Trusted contact's name</label>
+                            <input type="text" id="reg-trustee-name" placeholder="e.g. your sister, your best friend">
+                        </div>
+                        <div class="field">
+                            <label for="reg-trustee-email">Trusted contact's email</label>
+                            <input type="email" id="reg-trustee-email" placeholder="them@email.com">
+                        </div>
+                    </div>
                     <div class="checkbox-row">
                         <input type="checkbox" id="reg-terms">
                         <label for="reg-terms">I agree to the Terms of Service and Privacy Policy.</label>
@@ -288,6 +300,17 @@
 
                     <div id="fill-message">
                         <textarea placeholder="Dear future me…"></textarea>
+
+                        <button type="button" class="btn-inline-add" id="message-add-photo-btn">🖼️ Add a photo (optional)</button>
+                        <div id="message-photo-attach" style="display:none; margin-top:14px;">
+                            <div class="dropzone" id="message-photo-dropzone">
+                                <div class="dz-icon">🖼️</div>
+                                <div class="dz-title">Click to upload a photo</div>
+                                <div class="dz-sub">PNG or JPG, up to 5 photos</div>
+                            </div>
+                            <input type="file" id="message-photo-input" accept="image/*" multiple style="display:none;">
+                            <div class="file-chips" id="message-photo-chips"></div>
+                        </div>
                     </div>
                     <div id="fill-photo" style="display:none;">
                         <div class="dropzone" id="photo-dropzone">
@@ -297,6 +320,11 @@
                         </div>
                         <input type="file" id="photo-input" accept="image/*" multiple style="display:none;">
                         <div class="file-chips" id="photo-chips"></div>
+
+                        <button type="button" class="btn-inline-add" id="photo-add-message-btn">✉️ Add a message (optional)</button>
+                        <div id="photo-message-attach" style="display:none; margin-top:14px;">
+                            <textarea id="photo-message-text" placeholder="Say something about these photos…"></textarea>
+                        </div>
                     </div>
                     <div id="fill-voice" style="display:none;">
                         <div class="record-box">

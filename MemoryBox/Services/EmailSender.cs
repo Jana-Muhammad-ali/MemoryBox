@@ -11,7 +11,6 @@ public interface IEmailSender
     Task SendCapsuleUnlockedEmailAsync(Capsule capsule, CancellationToken ct = default);
 }
 
-// Sends mail through plain Gmail SMTP (smtp.gmail.com:587) using an App Password.
 public class SmtpEmailSender : IEmailSender
 {
     private readonly EmailSettings _settings;
@@ -34,47 +33,17 @@ public class SmtpEmailSender : IEmailSender
         }
 
         var greetingName = string.IsNullOrWhiteSpace(capsule.RecipientName) ? "there" : capsule.RecipientName;
-        var typeLabel = capsule.Type switch
-        {
-            "photo" => "photo capsule",
-            "voice" => "voice note",
-            "video" => "video",
-            "moments" => "collection of moments",
-            _ => "message"
-        };
 
-        // Private link — only works for THIS capsule, for anyone who has it. No login required.
+        // Intentionally generic — the notification email must never reveal the capsule's
+        // type (message/photo/voice/video/moments) or any of its content. It should only
+        // signal that something was sent, so the recipient has to open the link to see it.
         var openLink = $"{_appSettings.BaseUrl.TrimEnd('/')}/?view={capsule.ViewToken}";
 
-        var mediaPaths = string.IsNullOrEmpty(capsule.MediaPaths)
-            ? Array.Empty<string>()
-            : capsule.MediaPaths.Split(',', StringSplitOptions.RemoveEmptyEntries);
-
-        // For "moments" capsules, drop a preview gallery straight into the email —
-        // most inboxes load remote <img> fine as long as BaseUrl is a real public
-        // URL (not localhost) by the time this actually gets sent.
         var galleryHtml = "";
-        if (capsule.Type == "moments" && mediaPaths.Length > 0)
-        {
-            var imgTags = mediaPaths
-                .Where(p => !p.EndsWith(".webm", StringComparison.OrdinalIgnoreCase)) // skip voice notes here
-                .Select(p =>
-                {
-                    var fullUrl = $"{_appSettings.BaseUrl.TrimEnd('/')}{p}";
-                    var isVideo = p.EndsWith(".mp4", StringComparison.OrdinalIgnoreCase)
-                        || p.EndsWith(".mov", StringComparison.OrdinalIgnoreCase)
-                        || p.EndsWith(".webm", StringComparison.OrdinalIgnoreCase);
-                    // email clients can't play <video>, so videos get a labeled link/thumbnColor block instead
-                    return isVideo
-                        ? $@"<a href=""{fullUrl}"" style=""display:block; background:#1b3f30; color:#faf5e9; text-align:center; padding:26px 10px; border-radius:10px; margin-bottom:10px; text-decoration:none; font-family:Arial,sans-serif; font-size:13px;"">🎬 Watch video</a>"
-                        : $@"<img src=""{fullUrl}"" style=""width:100%; display:block; border-radius:10px; margin-bottom:10px;"">";
-                });
-            galleryHtml = string.Join("", imgTags);
-        }
-
-        var momentsCountLine = capsule.Type == "moments"
-            ? $"<p style=\"color:#5c6d63; font-size:13px; margin:0 0 20px;\">{mediaPaths.Length} moment{(mediaPaths.Length == 1 ? "" : "s")}, gathered over time — now ready.</p>"
-            : "";
+        var isSelfCapsule = string.Equals(capsule.RecipientType, "me", StringComparison.OrdinalIgnoreCase);
+        var headingTeaser = isSelfCapsule
+            ? "a little piece of your past is ready to meet you"
+            : "someone left this for you";
 
         var bodyHtml = $@"
 <div style=""font-family:Georgia,'Times New Roman',serif; max-width:560px; margin:0 auto; background:#1b3f30; padding:36px 20px;"">
@@ -87,9 +56,8 @@ public class SmtpEmailSender : IEmailSender
 
     <span style=""display:inline-block; background:#e6efe8; color:#2c6e49; font-size:11px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; padding:4px 10px; border-radius:999px; margin-bottom:14px;"">Unlocked</span>
 
-    <h2 style=""margin:6px 0 6px; font-size:22px; color:#1f2b24;"">Hi {WebUtility.HtmlEncode(greetingName)}, a {typeLabel} just unlocked 🔓</h2>
+    <h2 style=""margin:6px 0 6px; font-size:22px; color:#1f2b24;"">Hi {WebUtility.HtmlEncode(greetingName)}, {WebUtility.HtmlEncode(headingTeaser)} 🤍</h2>
     <p style=""color:#5c6d63; font-size:13px; margin:0 0 18px;"">Sealed on {capsule.CreatedAtUtc:MMMM d, yyyy}.</p>
-    {momentsCountLine}
 
     {galleryHtml}
 

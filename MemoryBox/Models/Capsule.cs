@@ -2,7 +2,6 @@
 
 namespace MemoryBox.Models;
 
-// A sealed memory capsule created by a logged-in user.
 public class Capsule
 {
     public int Id { get; set; }

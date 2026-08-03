@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -144,11 +145,36 @@ var auth = app.MapGroup("/api/auth");
 
 auth.MapPost("/register", async (RegisterRequest req, UserManager<ApplicationUser> userManager) =>
 {
+    // Basic server-side sanity checks on the optional trusted-contact fields —
+    // the client already checks these, but never trust the client alone.
+    var trustedName = string.IsNullOrWhiteSpace(req.TrustedContactName) ? null : req.TrustedContactName.Trim();
+    var trustedEmail = string.IsNullOrWhiteSpace(req.TrustedContactEmail) ? null : req.TrustedContactEmail.Trim();
+
+    if (trustedEmail is not null)
+    {
+        if (!new EmailAddressAttribute().IsValid(trustedEmail))
+        {
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["TrustedContactEmail"] = new[] { "That doesn't look like a valid email address." }
+            });
+        }
+        if (string.Equals(trustedEmail, req.Email, StringComparison.OrdinalIgnoreCase))
+        {
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["TrustedContactEmail"] = new[] { "Your trusted contact should be someone other than yourself." }
+            });
+        }
+    }
+
     var user = new ApplicationUser
     {
         UserName = req.Email,
         Email = req.Email,
-        FullName = req.FullName
+        FullName = req.FullName,
+        TrustedContactName = trustedName,
+        TrustedContactEmail = trustedEmail
     };
 
     var result = await userManager.CreateAsync(user, req.Password);
@@ -437,5 +463,5 @@ static long MaxBytesFor(string? contentType) =>
         : 25L * 1024 * 1024;  // photos / voice notes: up to 25 MB
 
 // ---- request DTOs ----
-record RegisterRequest(string Email, string Password, string? FullName);
+record RegisterRequest(string Email, string Password, string? FullName, string? TrustedContactName, string? TrustedContactEmail);
 record LoginRequest(string Email, string Password);
