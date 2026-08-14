@@ -48,7 +48,36 @@ navLinks.forEach(link => {
         else if (link.dataset.screen === 'home') { goToHomeOrRegister(); }
         else if (link.dataset.screen === 'add-moment') { goToAddMomentOrLogin(); }
         else { showScreen(link.dataset.screen); }
+        closeMobileNav();
     });
+});
+
+// ---- mobile hamburger menu ----
+const navToggle = document.getElementById('nav-toggle');
+const navLinksEl = document.getElementById('nav-links');
+const navOverlay = document.getElementById('nav-overlay');
+
+function openMobileNav() {
+    navLinksEl.classList.add('open');
+    navOverlay.classList.add('open');
+    navToggle.setAttribute('aria-expanded', 'true');
+}
+
+function closeMobileNav() {
+    navLinksEl.classList.remove('open');
+    navOverlay.classList.remove('open');
+    navToggle.setAttribute('aria-expanded', 'false');
+}
+
+if (navToggle) {
+    navToggle.addEventListener('click', () => {
+        const isOpen = navLinksEl.classList.contains('open');
+        isOpen ? closeMobileNav() : openMobileNav();
+    });
+}
+if (navOverlay) { navOverlay.addEventListener('click', closeMobileNav); }
+window.addEventListener('resize', () => {
+    if (window.innerWidth > 860) { closeMobileNav(); }
 });
 
 document.querySelectorAll('[data-goto]').forEach(el => {
@@ -56,13 +85,16 @@ document.querySelectorAll('[data-goto]').forEach(el => {
         e.preventDefault();
         const target = el.dataset.goto;
         if (target === 'create-reset' || target === 'create') { goToCreateOrLogin(); }
-        else { showScreen(target); }
+        else {
+            if (target === 'forgot-password') { resetForgotPasswordScreen(); }
+            showScreen(target);
+        }
     });
 });
 
 // brand logo returns home
 const brandBtn = document.querySelector('.brand');
-if (brandBtn) { brandBtn.addEventListener('click', () => goToHomeOrRegister()); }
+if (brandBtn) { brandBtn.addEventListener('click', () => { goToHomeOrRegister(); closeMobileNav(); }); }
 
 // ---- create capsule wizard ----
 let selectedType = null;
@@ -615,7 +647,7 @@ if (registerBtn) {
                 showFormError('register-error', msg);
                 return;
             }
-            
+
             await doLogin(email, pass, 'register-error');
         } catch (e) {
             showFormError('register-error', 'Network error. Please try again.');
@@ -650,7 +682,7 @@ async function doLogin(email, password, errorElId) {
             showFormError(errorElId, 'Incorrect email or password.');
             return;
         }
-        const data = await res.json(); 
+        const data = await res.json();
         saveAuth(data.accessToken);
         saveUserName(data.fullName);
         refreshAuthUI();
@@ -663,14 +695,133 @@ async function doLogin(email, password, errorElId) {
             pendingGoto = null;
             showScreen('add-moment');
         } else {
-            showScreen('home'); 
+            showScreen('home');
         }
     } catch (e) {
         showFormError(errorElId, 'Network error. Please try again.');
     }
 }
 
-// ---- Logout ----
+// ---- Forgot password ----
+const forgotBtn = document.getElementById('forgot-password-submit');
+const forgotFormWrap = document.getElementById('forgot-password-form-wrap');
+const forgotSuccess = document.getElementById('forgot-password-success');
+
+function isValidEmail(value) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+if (forgotBtn) {
+    forgotBtn.addEventListener('click', async () => {
+        clearFormError('forgot-password-error');
+        const email = document.getElementById('forgot-email').value.trim();
+        if (!email || !isValidEmail(email)) {
+            showFormError('forgot-password-error', 'Please enter a valid email address.');
+            return;
+        }
+        forgotBtn.disabled = true;
+        try {
+            const res = await fetch(API_BASE + '/api/identity/forgotPassword', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+            });
+            // ASP.NET Identity's forgotPassword endpoint returns 200 whether or not
+            // the account exists, on purpose, so we don't leak which emails are registered.
+            if (res.ok || res.status === 400) {
+                forgotFormWrap.style.display = 'none';
+                forgotSuccess.style.display = '';
+            } else {
+                showFormError('forgot-password-error', 'Something went wrong. Please try again.');
+            }
+        } catch (e) {
+            showFormError('forgot-password-error', 'Network error. Please try again.');
+        } finally {
+            forgotBtn.disabled = false;
+        }
+    });
+}
+
+// reset the forgot-password screen back to its form state each time it's opened
+function resetForgotPasswordScreen() {
+    if (!forgotFormWrap || !forgotSuccess) return;
+    forgotFormWrap.style.display = '';
+    forgotSuccess.style.display = 'none';
+    document.getElementById('forgot-email').value = '';
+    clearFormError('forgot-password-error');
+}
+
+// ---- Reset password ----
+const resetBtn = document.getElementById('reset-password-submit');
+const resetFormWrap = document.getElementById('reset-password-form-wrap');
+const resetSuccess = document.getElementById('reset-password-success');
+let resetCode = null; // pulled from the emailed link, not user-editable
+
+if (resetBtn) {
+    resetBtn.addEventListener('click', async () => {
+        clearFormError('reset-password-error');
+        const email = document.getElementById('reset-email').value.trim();
+        const pass = document.getElementById('reset-pass').value;
+        const pass2 = document.getElementById('reset-pass2').value;
+
+        if (!email || !isValidEmail(email)) {
+            showFormError('reset-password-error', 'Please enter a valid email address.');
+            return;
+        }
+        if (!resetCode) {
+            showFormError('reset-password-error', 'This reset link is invalid or has expired. Please request a new one.');
+            return;
+        }
+        if (!pass || pass.length < 8) {
+            showFormError('reset-password-error', 'Password must be at least 8 characters.');
+            return;
+        }
+        if (pass !== pass2) {
+            showFormError('reset-password-error', "Passwords don't match.");
+            return;
+        }
+
+        resetBtn.disabled = true;
+        try {
+            const res = await fetch(API_BASE + '/api/identity/resetPassword', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, resetCode, newPassword: pass })
+            });
+            if (res.ok) {
+                resetFormWrap.style.display = 'none';
+                resetSuccess.style.display = '';
+            } else {
+                const err = await res.json().catch(() => null);
+                const msg = err?.errors ? Object.values(err.errors).flat().join(' ') : 'This reset link is invalid or has expired. Please request a new one.';
+                showFormError('reset-password-error', msg);
+            }
+        } catch (e) {
+            showFormError('reset-password-error', 'Network error. Please try again.');
+        } finally {
+            resetBtn.disabled = false;
+        }
+    });
+}
+
+// If the page was opened from the "reset your password" email, it will carry
+// ?email=...&code=... in the URL. Pick those up and jump straight to the screen.
+function tryOpenResetPasswordFromLink() {
+    const params = new URLSearchParams(window.location.search);
+    const email = params.get('email');
+    const code = params.get('code');
+    if (!email || !code) return false;
+
+    resetCode = code;
+    document.getElementById('reset-email').value = email;
+    resetFormWrap.style.display = '';
+    resetSuccess.style.display = 'none';
+    clearFormError('reset-password-error');
+    showScreen('reset-password');
+    return true;
+}
+
+
 const logoutBtn = document.getElementById('nav-logout');
 if (logoutBtn) {
     logoutBtn.addEventListener('click', () => {
@@ -690,7 +841,7 @@ async function addMomentsToCapsule(capsuleId, files) {
     try {
         const res = await fetch(API_BASE + `/api/capsules/${capsuleId}/moments`, {
             method: 'POST',
-            headers: { Authorization: 'Bearer ' + getToken() }, 
+            headers: { Authorization: 'Bearer ' + getToken() },
             body: formData
         });
         if (res.status === 401) {
@@ -706,7 +857,7 @@ async function addMomentsToCapsule(capsuleId, files) {
             return { ok: false, error: err?.error || 'Could not add that moment. Please try again.' };
         }
         const data = await res.json();
-        refreshCapsules(); 
+        refreshCapsules();
         return { ok: true, momentsCount: data.momentsCount };
     } catch (e) {
         return { ok: false, error: 'Network error. Please try again.' };
@@ -893,7 +1044,7 @@ async function loadMomentsScreen() {
                 input.value = '';
                 if (result.ok) {
                     status.textContent = `Added! ${result.momentsCount} moment${result.momentsCount === 1 ? '' : 's'} sealed so far.`;
-                    loadMomentsScreen(); 
+                    loadMomentsScreen();
                 } else {
                     status.textContent = result.error || 'Something went wrong.';
                 }
@@ -951,7 +1102,7 @@ async function refreshCapsules() {
             const card = document.createElement('div');
             card.className = 'capsule-card';
 
-           
+
             const tiltSign = index % 2 === 0 ? -1 : 1;
             const tiltDeg = (tiltSign * (1.6 + (index % 3) * 0.5)).toFixed(1);
             const shadowX = (tiltSign * 8) + 'px';
@@ -984,7 +1135,7 @@ refreshAuthUI();
 if (getToken()) {
     refreshCapsules();
 } else {
-    
+
     showScreen('register');
 }
 
@@ -1362,6 +1513,7 @@ function buildSharedCapsuleContent(capsule) {
 }
 
 tryOpenSharedCapsuleFromLink();
+tryOpenResetPasswordFromLink();
 
 
 const imagineInner = document.querySelector('.imagine-inner');

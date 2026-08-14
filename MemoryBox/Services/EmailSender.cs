@@ -2,6 +2,7 @@
 using System.Net;
 using System.Net.Mail;
 using MemoryBox.Models;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 
 namespace MemoryBox.Services;
@@ -11,7 +12,7 @@ public interface IEmailSender
     Task SendCapsuleUnlockedEmailAsync(Capsule capsule, CancellationToken ct = default);
 }
 
-public class SmtpEmailSender : IEmailSender
+public class SmtpEmailSender : IEmailSender, IEmailSender<ApplicationUser>
 {
     private readonly EmailSettings _settings;
     private readonly AppSettings _appSettings;
@@ -87,5 +88,100 @@ public class SmtpEmailSender : IEmailSender
 
         await client.SendMailAsync(message, ct);
         _logger.LogInformation("Sent unlock email for capsule {Id} to {Email}", capsule.Id, capsule.RecipientEmail);
+    }
+
+    // ---- Microsoft.AspNetCore.Identity.IEmailSender<ApplicationUser> ----
+    // These are the methods MapIdentityApi's /forgotPassword and /resetPassword
+    // endpoints actually call. Without an implementation of THIS interface
+    // registered in DI, ASP.NET Core Identity silently falls back to its
+    // built-in no-op sender: /forgotPassword still returns 200, but no email
+    // is ever sent, and the reset link the front end expects never shows up.
+
+    public Task SendConfirmationLinkAsync(ApplicationUser user, string email, string confirmationLink) =>
+        SendAuthEmailAsync(
+            user,
+            email,
+            "Confirm your MemoryBox email",
+            "Confirm your email",
+            "Tap below to confirm this is really you.",
+            confirmationLink,
+            "Confirm email");
+
+    public Task SendPasswordResetLinkAsync(ApplicationUser user, string email, string resetLink) =>
+        SendAuthEmailAsync(
+            user,
+            email,
+            "Reset your MemoryBox password",
+            "Reset your password",
+            "Tap below to choose a new password.",
+            resetLink,
+            "Reset password");
+
+    public Task SendPasswordResetCodeAsync(ApplicationUser user, string email, string resetCode)
+    {
+        // The forgotPassword endpoint hands us a bare code, not a URL — we have to
+        // build the link ourselves so it matches what script.js's
+        // tryOpenResetPasswordFromLink() expects: /?email=...&code=...
+        var resetLink = $"{_appSettings.BaseUrl.TrimEnd('/')}/?email={Uri.EscapeDataString(email)}&code={Uri.EscapeDataString(resetCode)}";
+        return SendAuthEmailAsync(
+            user,
+            email,
+            "Reset your MemoryBox password",
+            "Reset your password",
+            "Tap below to choose a new password. This link only works once.",
+            resetLink,
+            "Reset password");
+    }
+
+    private async Task SendAuthEmailAsync(ApplicationUser user, string toEmail, string subject, string heading, string message, string link, string buttonLabel)
+    {
+        if (string.IsNullOrWhiteSpace(_settings.SenderEmail) || string.IsNullOrWhiteSpace(_settings.SenderAppPassword))
+        {
+            // Don't throw here — this method is called directly inside Identity's built-in
+            // /forgotPassword and /confirmEmail request handlers. Throwing bubbles up as an
+            // unhandled exception and the caller sees a raw 500, even though nothing else is
+            // wrong. Log it loudly (same as the startup banner) and return quietly instead —
+            // the request completes normally, it just doesn't deliver a real email until
+            // Email:SenderEmail / Email:SenderAppPassword are filled in in appsettings.json.
+            _logger.LogWarning("Email is not configured (Email:SenderEmail / Email:SenderAppPassword missing) — skipping '{Subject}' send to {Email}.", subject, toEmail);
+            return;
+        }
+
+        var greetingName = string.IsNullOrWhiteSpace(user.FullName) ? "there" : user.FullName;
+
+        var bodyHtml = $@"
+<div style=""font-family:Georgia,'Times New Roman',serif; max-width:560px; margin:0 auto; background:#1b3f30; padding:36px 20px;"">
+  <p style=""font-size:12px; letter-spacing:0.08em; text-transform:uppercase; color:#e6c07a; text-align:center; margin:0 0 18px;"">MemoryBox</p>
+
+  <div style=""background:#faf5e9; border-radius:14px; padding:28px;"">
+    <h2 style=""margin:6px 0 6px; font-size:22px; color:#1f2b24;"">Hi {WebUtility.HtmlEncode(greetingName)},</h2>
+    <p style=""color:#5c6d63; font-size:14px; margin:0 0 18px;"">{WebUtility.HtmlEncode(message)}</p>
+
+    <p style=""margin:24px 0 0;"">
+      <a href=""{link}"" style=""display:inline-block; background:#1b3f30; color:#faf5e9; text-decoration:none; padding:12px 22px; border-radius:999px; font-family:Arial,sans-serif; font-size:14px;"">{WebUtility.HtmlEncode(buttonLabel)}</a>
+    </p>
+    <p style=""color:#5c6d63; font-size:12px; margin:14px 0 0;"">If you didn't request this, you can safely ignore this email.</p>
+  </div>
+
+  <p style=""text-align:center; color:#c9d6cc; font-size:12px; margin:20px 0 0;"">— MemoryBox, a capsule for the moments worth waiting for.</p>
+</div>";
+
+        using var mail = new MailMessage
+        {
+            From = new MailAddress(_settings.SenderEmail, _settings.SenderName),
+            Subject = subject,
+            Body = bodyHtml,
+            IsBodyHtml = true
+        };
+        mail.To.Add(new MailAddress(toEmail));
+
+        using var client = new SmtpClient(_settings.SmtpHost, _settings.SmtpPort)
+        {
+            EnableSsl = true,
+            Credentials = new NetworkCredential(_settings.SenderEmail, _settings.SenderAppPassword)
+        };
+
+        await client.SendMailAsync(mail);
+        _logger.LogInformation("Sent '{Subject}' email to {Email}", subject, toEmail);
     }
 }

@@ -16,10 +16,10 @@ using MemoryBox.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ---- Database (SQLite — a single file, nothing to install) ----
+// ---- Database (SQL Server) ----
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("Default")
-        ?? "Data Source=memorybox.db"));
+    options.UseSqlServer(builder.Configuration.GetConnectionString("Default")
+        ?? throw new InvalidOperationException("Connection string 'Default' is missing from appsettings.json.")));
 
 // ---- Identity (password hashing, user storage, etc.) ----
 builder.Services.AddIdentityCore<ApplicationUser>(options =>
@@ -28,7 +28,8 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
     options.Password.RequiredLength = 8;
     options.User.RequireUniqueEmail = true;
 })
-.AddEntityFrameworkStores<AppDbContext>();
+.AddEntityFrameworkStores<AppDbContext>()
+.AddApiEndpoints(); // required for MapIdentityApi<T>() below to exist / generate its endpoints
 
 // ---- JWT auth ----
 var jwtKey = builder.Configuration["Jwt:Key"] ?? "CHANGE_THIS_TO_A_LONG_RANDOM_SECRET_KEY_1234567890";
@@ -80,7 +81,9 @@ builder.Services.AddAuthorization();
 // ---- Email (Gmail SMTP) + the background worker that sends unlock emails ----
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Email"));
 builder.Services.Configure<AppSettings>(builder.Configuration.GetSection("App"));
-builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
+builder.Services.AddSingleton<SmtpEmailSender>();
+builder.Services.AddSingleton<IEmailSender>(sp => sp.GetRequiredService<SmtpEmailSender>());
+builder.Services.AddSingleton<IEmailSender<ApplicationUser>>(sp => sp.GetRequiredService<SmtpEmailSender>());
 builder.Services.AddHostedService<CapsuleUnlockBackgroundService>();
 
 // ---- Upload size limits ----
@@ -141,6 +144,33 @@ app.UseAuthorization();
 // ==========================================================
 // AUTH ENDPOINTS
 // ==========================================================
+
+// Identity's own endpoint set (POST /register, POST /login, POST /refresh,
+// POST /forgotPassword, POST /resetPassword, /manage/*) gets mapped under a
+// SEPARATE prefix from our custom auth routes below.
+//
+// THE BUG THIS FIXES: MapIdentityApi<T>() maps its own "/register" and "/login"
+// at whatever group it's called on. This used to be called on the SAME "/api/auth"
+// group that also has our own custom MapPost("/register", ...) and
+// MapPost("/login", ...) below — two different endpoints mapped to the exact same
+// route + HTTP verb. ASP.NET Core doesn't pick one; every request to
+// POST /api/auth/register or POST /api/auth/login threw an
+// AmbiguousMatchException ("The request matched multiple endpoints") and the
+// caller just saw a 500. That's why registration (and login) never got as far as
+// touching the database.
+//
+// Only forgotPassword/resetPassword are actually used from Identity's built-in set
+// (EmailSender.cs's SendPasswordResetCodeAsync/SendConfirmationLinkAsync exist to
+// serve them) — our own /register and /login fully replace Identity's versions, so
+// giving the whole built-in group its own prefix removes the collision entirely.
+//
+// NOTE: this moves those two endpoints from /api/auth/forgotPassword and
+// /api/auth/resetPassword to /api/identity/forgotPassword and
+// /api/identity/resetPassword — update the two fetch() calls in your frontend
+// (script.js) to the new paths.
+var identity = app.MapGroup("/api/identity");
+identity.MapIdentityApi<ApplicationUser>();
+
 var auth = app.MapGroup("/api/auth");
 
 auth.MapPost("/register", async (RegisterRequest req, UserManager<ApplicationUser> userManager) =>
@@ -172,6 +202,12 @@ auth.MapPost("/register", async (RegisterRequest req, UserManager<ApplicationUse
     {
         UserName = req.Email,
         Email = req.Email,
+        // There's no email-confirmation flow in this app, so treat every registered
+        // email as confirmed. Without this, Identity's built-in /forgotPassword
+        // endpoint checks IsEmailConfirmedAsync() and silently skips sending the
+        // reset email for every single user — while still returning 200 OK, so the
+        // front end shows "check your inbox" even though nothing was ever sent.
+        EmailConfirmed = true,
         FullName = req.FullName,
         TrustedContactName = trustedName,
         TrustedContactEmail = trustedEmail

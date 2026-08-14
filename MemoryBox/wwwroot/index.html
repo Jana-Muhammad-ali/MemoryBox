@@ -13,7 +13,10 @@
 
     <div class="nav">
         <button class="brand"><span class="brand-dot"></span> MemoryBox</button>
-        <div class="nav-links">
+        <button class="nav-toggle" id="nav-toggle" aria-label="Open menu" aria-expanded="false">
+            <span></span><span></span><span></span>
+        </button>
+        <div class="nav-links" id="nav-links">
             <button class="nav-link active" data-screen="home">Home</button>
             <button class="nav-link" data-screen="login" id="nav-login">Log in</button>
             <button class="nav-link" data-screen="register" id="nav-register">Register</button>
@@ -22,6 +25,7 @@
             <button class="nav-link" id="nav-logout" style="display:none;">Log out</button>
         </div>
     </div>
+    <div class="nav-overlay" id="nav-overlay"></div>
 
     <!-- ================= HOME ================= -->
     <section class="screen active" id="home">
@@ -157,13 +161,99 @@
                         <label style="display:flex; align-items:center; gap:7px; color:var(--ink-soft);">
                             <input type="checkbox" style="accent-color:var(--gold);"> Remember me
                         </label>
-                        <a href="#" class="link-gold">Forgot password?</a>
+                        <a href="#" class="link-gold" data-goto="forgot-password">Forgot password?</a>
                     </div>
                     <div class="form-error" id="login-error"></div>
                     <button class="btn btn-solid btn-block" id="login-submit">Log in</button>
                     <div class="divider">or</div>
                     <button class="btn btn-block" style="border-color:var(--line); color:var(--ink);">Continue with Google</button>
                     <div class="switch-line">New to MemoryBox? <a href="#" class="link-gold" data-goto="register">Create an account</a></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ================= FORGOT PASSWORD ================= -->
+    <section class="screen" id="forgot-password">
+        <div class="auth-wrap">
+            <div class="auth-hero">
+                <div class="string"></div>
+                <div class="polaroids">
+                    <div class="polaroid"><div class="photo" style="background:linear-gradient(135deg,#8fae9a,#254a3a);"></div></div>
+                    <div class="polaroid"><div class="photo" style="background:linear-gradient(135deg,#e6c07a,#d6a441);"></div></div>
+                </div>
+                <div class="auth-eyebrow">No worries</div>
+                <h1>It happens. Let's get you back in.</h1>
+                <p class="sub">Enter the email on your account and we'll send you a link to reset your password.</p>
+                <div class="stamp-row">
+                    <div class="stamp">✦</div>
+                    <div class="stamp">✉</div>
+                    <div class="stamp">◐</div>
+                </div>
+            </div>
+            <div class="auth-panel">
+                <div class="auth-card" id="forgot-password-form-wrap">
+                    <h2>Reset your password</h2>
+                    <p class="lead">We'll email you a link to choose a new one.</p>
+                    <div class="field">
+                        <label for="forgot-email">Email</label>
+                        <input type="email" id="forgot-email" placeholder="you@email.com">
+                    </div>
+                    <div class="form-error" id="forgot-password-error"></div>
+                    <button class="btn btn-solid btn-block" id="forgot-password-submit">Send reset link</button>
+                    <div class="switch-line">Remembered it after all? <a href="#" class="link-gold" data-goto="login">Back to log in</a></div>
+                </div>
+                <div class="auth-card" id="forgot-password-success" style="display:none;">
+                    <h2>Check your inbox</h2>
+                    <p class="lead">If an account exists for that email, we've sent a link to reset your password. It should arrive within a few minutes — don't forget to check spam.</p>
+                    <div class="switch-line">Back to <a href="#" class="link-gold" data-goto="login">log in</a></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ================= RESET PASSWORD ================= -->
+    <section class="screen" id="reset-password">
+        <div class="auth-wrap">
+            <div class="auth-hero">
+                <div class="string"></div>
+                <div class="polaroids">
+                    <div class="polaroid"><div class="photo" style="background:linear-gradient(135deg,#e07a5a,#c15f42);"></div></div>
+                    <div class="polaroid"><div class="photo" style="background:linear-gradient(135deg,#d6a441,#8fae9a);"></div></div>
+                </div>
+                <div class="auth-eyebrow">Almost there</div>
+                <h1>Choose a new password.</h1>
+                <p class="sub">Pick something you'll remember this time — at least 8 characters.</p>
+                <div class="stamp-row">
+                    <div class="stamp">✦</div>
+                    <div class="stamp">✉</div>
+                    <div class="stamp">◐</div>
+                </div>
+            </div>
+            <div class="auth-panel">
+                <div class="auth-card" id="reset-password-form-wrap">
+                    <h2>Set a new password</h2>
+                    <p class="lead">This link works once, so make it count.</p>
+                    <div class="field">
+                        <label for="reset-email">Email</label>
+                        <input type="email" id="reset-email" placeholder="you@email.com">
+                    </div>
+                    <div class="field">
+                        <label for="reset-pass">New password</label>
+                        <input type="password" id="reset-pass" placeholder="At least 8 characters">
+                    </div>
+                    <div class="field">
+                        <label for="reset-pass2">Confirm new password</label>
+                        <input type="password" id="reset-pass2" placeholder="Re-enter new password">
+                    </div>
+                    <div class="form-error" id="reset-password-error"></div>
+                    <button class="btn btn-solid btn-block" id="reset-password-submit">Reset password</button>
+                    <div class="switch-line">Changed your mind? <a href="#" class="link-gold" data-goto="login">Back to log in</a></div>
+                </div>
+                <div class="auth-card" id="reset-password-success" style="display:none;">
+                    <h2>Password updated.</h2>
+                    <p class="lead">You're all set — log in with your new password.</p>
+                    <div class="switch-line"><a href="#" class="link-gold" data-goto="login">Go to log in</a></div>
                 </div>
             </div>
         </div>

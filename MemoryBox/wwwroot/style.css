@@ -109,6 +109,59 @@ body::before {
     gap: 28px;
 }
 
+/* ---------- hamburger toggle (mobile only) ---------- */
+.nav-toggle {
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+    width: 40px;
+    height: 40px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    z-index: 60;
+}
+
+    .nav-toggle span {
+        display: block;
+        width: 22px;
+        height: 2px;
+        background: var(--pine);
+        border-radius: 2px;
+        transition: transform .25s ease, opacity .2s ease;
+    }
+
+    .nav-toggle[aria-expanded="true"] span:nth-child(1) {
+        transform: translateY(7px) rotate(45deg);
+    }
+
+    .nav-toggle[aria-expanded="true"] span:nth-child(2) {
+        opacity: 0;
+    }
+
+    .nav-toggle[aria-expanded="true"] span:nth-child(3) {
+        transform: translateY(-7px) rotate(-45deg);
+    }
+
+.nav-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(18,42,32,0.35);
+    z-index: 45;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .25s ease;
+}
+
+    .nav-overlay.open {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
 .nav-link {
     font-size: 0.92rem;
     font-weight: 500;
@@ -2143,10 +2196,48 @@ textarea {
 
     .nav {
         padding: 16px 20px;
+        position: relative;
+    }
+
+    .nav-toggle {
+        display: flex;
     }
 
     .nav-links {
-        gap: 14px;
+        position: fixed;
+        top: 0;
+        right: 0;
+        height: 100vh;
+        width: min(78vw, 300px);
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+        background: var(--paper-white);
+        box-shadow: -12px 0 32px -12px rgba(18,42,32,0.35);
+        padding: 88px 24px 24px;
+        transform: translateX(100%);
+        transition: transform .3s ease;
+        z-index: 55;
+        overflow-y: auto;
+    }
+
+        .nav-links.open {
+            transform: translateX(0);
+        }
+
+        .nav-links .nav-link {
+            width: 100%;
+            padding: 14px 6px;
+            font-size: 1rem;
+            border-bottom: 1px solid var(--line);
+        }
+
+            .nav-links .nav-link.active::after {
+                display: none;
+            }
+
+    .nav-overlay {
+        display: block;
     }
 
     .create-wrap {
